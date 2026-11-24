@@ -47,18 +47,45 @@
         <pre class="回执" id="规">加载中…</pre>
       </section>
       <section class="卷">
+        <h2>空窗封印策略</h2>
+        <p class="说明">当前策略：<b>双写两轨</b>。空缓冲关窗写空封占位行（现行账本可回读）+ 只读封印归档（窗号、封印键、形态标记、valid）。写封印与推进窗号同事务，任一失败整笔回滚。</p>
+        <div class="工具"><button class="按钮 次" id="关空">关当前窗（试空封）</button><span id="空封回执" class="说明"></span></div>
+        <div class="表绕"><table><thead><tr><th>窗号</th><th>封印键</th><th>形态标记</th><th>valid</th><th>可回读</th></tr></thead><tbody id="封表"></tbody></table></div>
+      </section>
+      <section class="卷">
         <h2>空桩目录</h2>
         <p class="说明" id="空桩"></p>
         <div class="双栏">
-          <p class="说明">窗规钉死当前窗。改时钟漂移属于空桩，不在基线默认路径。</p>
+          <p class="说明">窗规钉死当前窗；空封关窗后按窗长秒推进水位，下一窗起止可见于窗规原文。</p>
           <div class="侧注">子方向：采集入库编排。行业皮：物流网点轨迹。去皮：事件时关窗管道。</div>
         </div>
       </section>
       <script>
+      async function 刷封() {
+        const 全 = await 潮切.getJSON("/api/空窗封印");
+        const tb = document.getElementById("封表"); tb.innerHTML = "";
+        if (!全.条数) { tb.innerHTML = `<tr><td colspan="5">${潮切.空态("尚无空封。缓冲为空时关窗即写封印。")}</td></tr>`; return; }
+        for (const f of 全.封印) {
+          const ok = f.可回读 ? 潮切.徽章("可回读", "好") : 潮切.徽章("失效", "危");
+          tb.appendChild(潮切.行(`<td>${潮切.安全文本(f.窗号)}</td><td>${潮切.安全文本(f.封印键)}</td><td>${潮切.安全文本(f.形态标记)}</td><td>${f.valid}</td><td>${ok}</td>`));
+        }
+      }
+      document.getElementById("关空").onclick = async () => {
+        const r = await 潮切.getJSON("/api/窗规");
+        const d = await 潮切.postJSON("/api/关窗/跑", { 假定窗号: r["当前窗号"] || "" });
+        document.getElementById("空封回执").textContent = 潮切.关窗摘要(d);
+        document.getElementById("规").textContent = JSON.stringify(await 潮切.getJSON("/api/窗规"), null, 2);
+        await 刷封();
+      };
+      </script>
+      <script>
       (async () => {
         document.getElementById("规").textContent = JSON.stringify(await 潮切.getJSON("/api/窗规"), null, 2);
         const s = await 潮切.getJSON("/api/空桩");
-        document.getElementById("空桩").textContent = "空桩 " + s.条数 + "：" + (s.空桩 || []).join(" · ");
+        document.getElementById("空桩").textContent =
+          "空桩 " + s.条数 + "：" + (s.空桩 || []).join(" · ") +
+          (s.已接线 && s.已接线.length ? "　｜　已接线：" + s.已接线.join(" · ") : "");
+        await 刷封();
       })();
       </script>
 

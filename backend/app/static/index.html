@@ -76,6 +76,12 @@
         </div>
         <pre class="回执" id="回执">操作回执会显示在这里</pre>
       </section>
+      <section class="卷">
+        <h2>空窗封印</h2>
+        <p class="说明">缓冲为空时关窗不是“什么都没发生”：写空封占位行 + 只读封印，并推进水位。此处回读当前窗是否已封。</p>
+        <div class="工具"><span id="空封态"></span> <span id="空封键" class="说明"></span></div>
+        <div class="表绕"><table><thead><tr><th>窗号</th><th>封印键</th><th>形态标记</th><th>valid</th><th>可回读</th><th>封印时</th></tr></thead><tbody id="封表"></tbody></table></div>
+      </section>
       <script>
       async function 刷新() {
         const o = await 潮切.getJSON("/api/概览");
@@ -83,6 +89,20 @@
         document.getElementById("尺起").textContent = (r["窗起"] || "窗起").slice(11, 16) || "窗起";
         document.getElementById("尺止").textContent = (r["窗止"] || "窗止").slice(11, 16) || "窗止";
         潮切.渲染水位(document.getElementById("水位"), o);
+        const 全 = await 潮切.getJSON("/api/空窗封印");
+        const tb = document.getElementById("封表"); tb.innerHTML = "";
+        if (!全.条数) {
+          tb.innerHTML = `<tr><td colspan="6">${潮切.空态("尚无空封。缓冲为空时点关当前窗，即写封印。")}</td></tr>`;
+        } else {
+          for (const f of 全.封印) {
+            const ok = f.可回读 ? 潮切.徽章("可回读", "好") : 潮切.徽章("失效", "危");
+            tb.appendChild(潮切.行(`<td>${潮切.安全文本(f.窗号)}</td><td>${潮切.安全文本(f.封印键)}</td><td>${潮切.安全文本(f.形态标记)}</td><td>${f.valid}</td><td>${ok}</td><td>${潮切.安全文本(f.封印时)}</td>`));
+          }
+        }
+        const 本窗 = r["当前窗号"] || "";
+        const 查 = await 潮切.getJSON("/api/空窗封印?窗号=" + encodeURIComponent(本窗));
+        document.getElementById("空封态").innerHTML = `当前窗 ${潮切.安全文本(本窗)}：` + 潮切.空封徽章(查);
+        document.getElementById("空封键").textContent = 查.有封印 ? `封印键 ${查.封印.封印键}` : "";
       }
       async function 跑(fn) {
         const el = document.getElementById("回执");
@@ -93,7 +113,10 @@
       }
       document.getElementById("灌成片").onclick = () => 跑(() => 潮切.postJSON("/api/观测点/夹具/窗内成片样例"));
       document.getElementById("灌迟到").onclick = () => 跑(() => 潮切.postJSON("/api/观测点/夹具/迟到样例"));
-      document.getElementById("关窗").onclick = () => 跑(() => 潮切.postJSON("/api/关窗/跑"));
+      document.getElementById("关窗").onclick = () => 跑(async () => {
+        const r = await 潮切.getJSON("/api/窗规");
+        return 潮切.postJSON("/api/关窗/跑", { 假定窗号: r["当前窗号"] || "" });
+      });
       document.getElementById("贯验").onclick = () => 跑(() => 潮切.postJSON("/api/窗贯验/跑"));
       刷新();
       </script>

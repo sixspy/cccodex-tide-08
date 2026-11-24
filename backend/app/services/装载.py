@@ -1,4 +1,4 @@
-"""观测点装载 → 入窗或迟到。"""
+"""观测点装载 → 入窗或迟到。装载与关窗共用写锁，避免关窗与灌入交错漏封。"""
 from __future__ import annotations
 import json
 import uuid
@@ -13,12 +13,18 @@ def 装一批(体: dict) -> dict:
     报告 = {"批次编号": 批次, "入流": 0, "入缓冲": 0, "迟到": 0, "驳回": 0, "明细": []}
     for e in 校验.校验批次(体):
         报告["明细"].append({"命运": "批次预检", "说明": e})
-    规 = 目录.窗规()
-    窗号 = 规.get("当前窗号", "W-demo")
-    窗起 = 规.get("窗起", "2026-11-24T00:00:00Z")
-    窗止 = 规.get("窗止", "2026-11-24T01:00:00Z")
-    conn = 连接()
+
+    conn = 连接(隔离=True)
     try:
+        conn.execute("BEGIN IMMEDIATE")
+        # 取得写锁后重读窗规：关窗可能已推进水位
+        规 = {}
+        for r in conn.execute("SELECT 键,值 FROM 窗规").fetchall():
+            规[r["键"]] = r["值"]
+        窗号 = 规.get("当前窗号", "W-demo")
+        窗起 = 规.get("窗起", "2026-11-24T00:00:00Z")
+        窗止 = 规.get("窗止", "2026-11-24T01:00:00Z")
+
         for ev in 事件:
             行错 = 校验.校验事件(ev)
             if 行错:
@@ -60,6 +66,9 @@ def 装一批(体: dict) -> dict:
             (批次, 此刻(), 报告["入流"], 报告["入缓冲"], 报告["迟到"], json.dumps(报告, ensure_ascii=False)),
         )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
     return 报告

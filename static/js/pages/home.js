@@ -20,6 +20,8 @@ export function fateChip(fate) {
     "已物化": "ok",
     "已成片": "ok",
     "已迟到": "warn",
+    "已封印": "ok",
+    "空封占位": "ok",
     "撕裂": "danger",
     "对齐": "ok",
   };
@@ -38,13 +40,27 @@ export function summarizeLoad(report) {
 
 export function summarizeClose(report) {
   if (!report) return "无关窗回执";
+  if (report["结果"] === "冲突") return `冲突：窗 ${report["窗号"] || "?"} 已被处理`;
+  if (report["空封"]) {
+    const 下 = report["下一窗"] || {};
+    return `窗 ${report["窗号"]} 空封 · 封印 ${report["封印键"] || "?"} · 水位 → ${下["窗号"] || "?"}`;
+  }
   return `窗 ${report["窗号"] || "?"} · 成片 ${report["成片数"] || 0} · 缓冲消耗 ${report["缓冲消耗"] || 0}`;
+}
+
+export function sealBadge(seal) {
+  if (!seal || !seal["有封印"]) return { text: "未封印", tone: "" };
+  const f = seal["封印"] || {};
+  return f["valid"] === 1 && f["可回读"]
+    ? { text: "空封可回读", tone: "ok" }
+    : { text: "空封失效", tone: "danger" };
 }
 
 export function summarizeVerify(report) {
   if (!report) return "无贯验回执";
   const ok = report["是否对齐"] ? "对齐" : "撕裂";
-  return `${ok} · 在缓冲 ${report["在缓冲"]} · 切片事件 ${report["切片事件"]} · 迟到 ${report["迟到"]}`;
+  const 空 = report["空封笔数"] ? ` · 空封 ${report["空封笔数"]}` : "";
+  return `${ok} · 在缓冲 ${report["在缓冲"]} · 切片事件 ${report["切片事件"]} · 迟到 ${report["迟到"]}${空}`;
 }
 
 export function emptyState(kind) {
@@ -68,6 +84,7 @@ export function buildMetricCards(overview) {
     { key: "观测点", value: o["观测点"] || 0, hint: "装载入流累计" },
     { key: "在缓冲", value: o["在缓冲"] || 0, hint: "未关窗物化" },
     { key: "窗切片", value: o["窗切片"] || 0, hint: "关窗产物笔数" },
+    { key: "空封", value: o["空封"] || 0, hint: "空缓冲关窗封印" },
     { key: "迟到", value: o["迟到"] || 0, hint: "事件时出窗" },
   ];
 }

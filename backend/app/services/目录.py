@@ -74,13 +74,38 @@ def 贯验列表() -> list[dict]:
         conn.close()
 
 
+def 空封列表() -> list[dict]:
+    from app.services import 空封
+
+    return 空封.列表()
+
+
+def 关窗批次列表() -> list[dict]:
+    conn = 连接()
+    try:
+        return [dict(r) for r in conn.execute("SELECT * FROM 关窗批次 ORDER BY 时刻 DESC LIMIT 50").fetchall()]
+    finally:
+        conn.close()
+
+
 def 概览() -> dict:
     conn = 连接()
     try:
+        空封数 = conn.execute(
+            "SELECT COUNT(*) AS c FROM 空窗封印 WHERE valid=1"
+        ).fetchone()["c"]
+        本窗 = conn.execute("SELECT 值 FROM 窗规 WHERE 键='当前窗号'").fetchone()
+        本窗号 = 本窗["值"] if 本窗 else ""
+        本窗封 = conn.execute(
+            "SELECT COUNT(*) AS c FROM 空窗封印 WHERE valid=1 AND 窗号=?", (本窗号,)
+        ).fetchone()["c"]
         return {
             "观测点": conn.execute("SELECT COUNT(*) AS c FROM 观测点").fetchone()["c"],
             "在缓冲": conn.execute("SELECT COUNT(*) AS c FROM 入窗缓冲 WHERE 命运='在缓冲'").fetchone()["c"],
-            "窗切片": conn.execute("SELECT COUNT(*) AS c FROM 窗切片账").fetchone()["c"],
+            "窗切片": conn.execute("SELECT COUNT(*) AS c FROM 窗切片账 WHERE 形态='成片'").fetchone()["c"],
+            "空封占位": conn.execute("SELECT COUNT(*) AS c FROM 窗切片账 WHERE 形态='空封占位'").fetchone()["c"],
+            "空封": 空封数,
+            "本窗已封": bool(本窗封),
             "迟到": conn.execute("SELECT COUNT(*) AS c FROM 迟到匣").fetchone()["c"],
             "窗规": 窗规(),
         }

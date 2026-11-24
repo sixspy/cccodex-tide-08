@@ -44,16 +44,16 @@
 
       <section class="卷">
         <div class="工具"><button class="按钮" id="跑">跑窗贯验</button> <span id="果"></span></div>
-        <div class="表绕"><table><thead><tr><th>时刻</th><th>缓冲笔数</th><th>切片笔数</th><th>迟到笔数</th><th>是否对齐</th><th>说明</th></tr></thead><tbody id="表"></tbody></table></div>
+        <div class="表绕"><table><thead><tr><th>时刻</th><th>缓冲笔数</th><th>切片笔数</th><th>空封笔数</th><th>迟到笔数</th><th>是否对齐</th><th>说明</th></tr></thead><tbody id="表"></tbody></table></div>
       </section>
-      <section class="卷"><p class="说明">贯验只认事件数互证，不认墙钟快慢。</p></section>
+      <section class="卷"><p class="说明">贯验只认事件数互证，不认墙钟快慢。空封单独成集：每个 valid 封印须恰有一行空封占位（事件数 0），占位与封印一对一。</p></section>
       <script>
       async function 刷() {
         const rows = await 潮切.getJSON("/api/窗贯验");
         const tb = document.getElementById("表"); tb.innerHTML = "";
         for (const r of rows) {
           const ok = r.是否对齐 ? 潮切.徽章("对齐","好") : 潮切.徽章("撕裂","危");
-          tb.appendChild(潮切.行(`<td>${潮切.安全文本(r.时刻)}</td><td>${r.缓冲笔数}</td><td>${r.切片笔数}</td><td>${r.迟到笔数}</td><td>${ok}</td><td>${潮切.安全文本(r.说明)}</td>`));
+          tb.appendChild(潮切.行(`<td>${潮切.安全文本(r.时刻)}</td><td>${r.缓冲笔数}</td><td>${r.切片笔数}</td><td>${r.空封笔数 ?? 0}</td><td>${r.迟到笔数}</td><td>${ok}</td><td>${潮切.安全文本(r.说明)}</td>`));
         }
       }
       document.getElementById("跑").onclick = async () => {

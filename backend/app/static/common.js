@@ -31,6 +31,7 @@ function 格式概览(o) {
     ["观测点", o["观测点"] || 0],
     ["在缓冲", o["在缓冲"] || 0],
     ["窗切片", o["窗切片"] || 0],
+    ["空封", o["空封"] || 0],
     ["迟到", o["迟到"] || 0],
   ];
 }
@@ -54,18 +55,31 @@ function 装载摘要(report) {
 }
 function 关窗摘要(report) {
   if (!report) return "";
+  if (report["结果"] === "冲突") return `冲突：窗 ${report["窗号"] || "?"} 已被处理`;
+  if (report["空封"]) {
+    const 下 = report["下一窗"] || {};
+    return `窗 ${report["窗号"]} 空封 · 封印 ${report["封印键"] || "?"} · 水位 → ${下["窗号"] || "?"}`;
+  }
   return `窗 ${report["窗号"] || "?"} · 成片 ${report["成片数"] || 0} · 缓冲消耗 ${report["缓冲消耗"] || 0}`;
 }
 function 贯验摘要(report) {
   if (!report) return "";
-  return `${report["是否对齐"] ? "对齐" : "撕裂"} · 在缓冲 ${report["在缓冲"]} · 切片事件 ${report["切片事件"]} · 迟到 ${report["迟到"]}`;
+  const 空 = report["空封笔数"] ? ` · 空封 ${report["空封笔数"]}` : "";
+  return `${report["是否对齐"] ? "对齐" : "撕裂"} · 在缓冲 ${report["在缓冲"]} · 切片事件 ${report["切片事件"]} · 迟到 ${report["迟到"]}${空}`;
 }
 function 安全文本(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[c]);
 }
+function 空封徽章(封) {
+  if (!封 || !封["有封印"]) return 徽章("未封印", "");
+  const f = 封["封印"] || {};
+  if (f["valid"] === 1 && f["可回读"]) return 徽章("空封可回读", "好");
+  return 徽章("空封失效", "危");
+}
 window.潮切 = {
   getJSON, postJSON, 行, 徽章, 空态, 格式概览, 渲染水位,
   窗规一行, 装载摘要, 关窗摘要, 贯验摘要, 安全文本,
+  空封徽章,
 };

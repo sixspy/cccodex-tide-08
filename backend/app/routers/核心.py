@@ -2,7 +2,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 from pathlib import Path
-from app.services import 目录, 装载, 关窗, 贯验, 夹具, 统计, 说明
+from app.services import 目录, 装载, 关窗, 贯验, 夹具, 统计, 说明, 空封
 
 
 async def api_概览(request: Request):
@@ -64,7 +64,20 @@ async def api_夹具装载(request: Request):
 
 
 async def api_关窗(request: Request):
-    return JSONResponse(关窗.关当前窗())
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    return JSONResponse(关窗.关当前窗(body if isinstance(body, dict) else {}))
+
+
+async def api_空封(request: Request):
+    窗号 = request.query_params.get("窗号", "")
+    return JSONResponse(空封.查看(窗号))
+
+
+async def api_关窗批次(request: Request):
+    return JSONResponse(目录.关窗批次列表())
 
 
 async def api_贯验(request: Request):
@@ -80,13 +93,20 @@ async def api_统计缓冲(request: Request):
 
 
 async def api_空桩(request: Request):
+    import importlib
+
     root = Path(__file__).resolve().parents[1] / "modules"
-    out = []
+    空桩, 已接线 = [], []
     if root.is_dir():
         for p in sorted(root.iterdir()):
             if p.is_dir() and p.name != "__pycache__" and (p / "__init__.py").is_file():
-                out.append(p.name)
-    return JSONResponse({"空桩": out, "条数": len(out)})
+                try:
+                    模 = importlib.import_module(f"app.modules.{p.name}")
+                    启用 = bool(模.describe().get("默认启用"))
+                except Exception:
+                    启用 = False
+                (已接线 if 启用 else 空桩).append(p.name)
+    return JSONResponse({"空桩": 空桩, "条数": len(空桩), "已接线": 已接线})
 
 
 路由表 = [
@@ -104,6 +124,8 @@ async def api_空桩(request: Request):
     Route("/api/观测点/装载", api_装载, methods=["POST"]),
     Route("/api/观测点/夹具/{name}", api_夹具装载, methods=["POST"]),
     Route("/api/关窗/跑", api_关窗, methods=["POST"]),
+    Route("/api/空窗封印", api_空封),
+    Route("/api/关窗批次", api_关窗批次),
     Route("/api/窗贯验/跑", api_贯验, methods=["POST"]),
     Route("/api/统计/观测命运", api_统计观测),
     Route("/api/统计/缓冲命运", api_统计缓冲),
